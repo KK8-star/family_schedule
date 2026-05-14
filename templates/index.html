@@ -1,0 +1,786 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家族スケジュール</title>
+<style>
+/* ═══════════════════════════════════════════════
+   リセット・ベース
+═══════════════════════════════════════════════ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  background: #f0f4f8;
+  color: #333;
+  min-height: 100vh;
+}
+
+/* ═══════════════════════════════════════════════
+   ヘッダー
+═══════════════════════════════════════════════ */
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header h1 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.nav-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .2s;
+  text-decoration: none;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.38); }
+.nav-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  min-width: 148px;
+  text-align: center;
+}
+.today-btn {
+  background: white;
+  color: #667eea;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: .85rem;
+  transition: opacity .2s;
+  text-decoration: none;
+}
+.today-btn:hover { opacity: .85; }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.import-btn {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: .82rem;
+  text-decoration: none;
+  transition: background .2s;
+}
+.import-btn:hover { background: rgba(255,255,255,0.32); }
+
+/* ═══════════════════════════════════════════════
+   メンバーフィルター
+═══════════════════════════════════════════════ */
+.filter-bar {
+  background: white;
+  padding: 8px 16px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.filter-btn {
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  font-size: .82rem;
+  font-weight: 600;
+  transition: all .2s;
+  opacity: 0.55;
+  color: white;
+  text-decoration: none;
+  display: inline-block;
+}
+.filter-btn.active {
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.28);
+  transform: translateY(-1px);
+}
+.filter-btn:hover { opacity: 0.88; }
+
+/* ═══════════════════════════════════════════════
+   カレンダーラッパー
+═══════════════════════════════════════════════ */
+.calendar-wrapper {
+  padding: 12px 16px 80px;
+  overflow-x: auto;
+}
+
+/* ═══════════════════════════════════════════════
+   カレンダーグリッド
+═══════════════════════════════════════════════ */
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-left: 1px solid #ddd;
+  border-top: 1px solid #ddd;
+  background: white;
+  min-width: 680px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* 曜日ヘッダー */
+.dow-header {
+  text-align: center;
+  padding: 8px 4px;
+  font-size: .78rem;
+  font-weight: 700;
+  background: #f8f9fa;
+  border-right: 1px solid #ddd;
+  border-bottom: 2px solid #ddd;
+  color: #555;
+}
+.dow-header.sun { color: #e74c3c; }
+.dow-header.sat { color: #3498db; }
+
+/* ═══════════════════════════════════════════════
+   週ブロック（display:contents で grid に溶け込む）
+═══════════════════════════════════════════════ */
+.week-row {
+  display: contents;
+}
+
+/* ═══════════════════════════════════════════════
+   日セル
+═══════════════════════════════════════════════ */
+.day-cell {
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+  min-height: 115px;
+  padding-bottom: 4px;
+  position: relative;
+  background: white;
+  overflow: visible;
+}
+.day-cell.other-month { background: #f9fafb; }
+.day-cell.today       { background: #fffbec; }
+
+/* 日付数字 */
+.day-number {
+  font-size: .78rem;
+  font-weight: 600;
+  padding: 3px 5px;
+  display: inline-block;
+  min-width: 22px;
+  text-align: center;
+  line-height: 1.4;
+  color: #444;
+}
+.day-cell.drag-over {
+  background: #dbeafe !important;
+  outline: 2px dashed #3b82f6;
+}
+.bar[draggable='true'] {
+  cursor: grab;
+}
+.bar[draggable='true']:active {
+  cursor: grabbing;
+  opacity: 0.6;
+}
+
+.day-cell.today .day-number {
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 5px;
+}
+.day-cell.is-sun .day-number { color: #e74c3c; }
+.day-cell.is-sat .day-number { color: #3498db; }
+.day-cell.today.is-sun .day-number,
+.day-cell.today.is-sat .day-number { color: white; }
+
+/* ═══════════════════════════════════════════════
+   リボンコンテナ
+═══════════════════════════════════════════════ */
+.bars-container {
+  position: relative;
+  height: {{ MAX_BAR_ROWS * 20 }}px;
+  margin-top: 2px;
+  overflow: visible;
+}
+
+/* ═══════════════════════════════════════════════
+   リボンバー
+═══════════════════════════════════════════════ */
+.bar {
+  position: absolute;
+  height: 18px;
+  line-height: 18px;
+  font-size: .7rem;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  padding: 0 6px;
+  z-index: 10;
+  transition: filter .15s;
+}
+.bar:hover { filter: brightness(1.12); z-index: 20; }
+
+/* 角丸パターン */
+.bar.bar-both  { border-radius: 9px; }
+.bar.bar-start { border-radius: 9px 0 0 9px; }
+.bar.bar-end   { border-radius: 0 9px 9px 0; }
+.bar.bar-mid   { border-radius: 0; }
+
+/* ═══════════════════════════════════════════════
+   オーバーフローバッジ
+═══════════════════════════════════════════════ */
+.overflow-badge {
+  font-size: .68rem;
+  color: #888;
+  padding: 1px 5px;
+  cursor: pointer;
+  user-select: none;
+}
+.overflow-badge:hover { color: #555; }
+
+/* ═══════════════════════════════════════════════
+   モーダル
+═══════════════════════════════════════════════ */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.52);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: white;
+  border-radius: 14px;
+  padding: 24px 24px 20px;
+  width: 92%;
+  max-width: 460px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.32);
+  position: relative;
+  animation: modalIn .18s ease;
+}
+@keyframes modalIn {
+  from { transform: scale(.92); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: #aaa;
+  line-height: 1;
+}
+.modal-close:hover { color: #555; }
+.modal-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.modal-member-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.modal h2 {
+  font-size: 1.08rem;
+  color: #222;
+  line-height: 1.4;
+}
+.modal-body { display: flex; flex-direction: column; gap: 8px; }
+.modal-row  { display: flex; align-items: flex-start; gap: 10px; }
+.modal-label {
+  font-size: .78rem;
+  color: #999;
+  min-width: 64px;
+  padding-top: 1px;
+}
+.modal-value {
+  font-size: .9rem;
+  color: #333;
+  flex: 1;
+  word-break: break-all;
+}
+.modal-divider {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 12px 0;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: .84rem;
+  font-weight: 600;
+  transition: filter .18s, transform .12s;
+}
+.btn:hover  { filter: brightness(.92); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-primary   { background: #667eea; color: white; }
+.btn-danger    { background: #e74c3c; color: white; }
+.btn-secondary { background: #ecf0f1; color: #555; }
+
+/* ═══════════════════════════════════════════════
+   フローティング追加ボタン
+═══════════════════════════════════════════════ */
+.add-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  font-size: 2rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(102,126,234,.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: transform .2s, box-shadow .2s;
+  z-index: 500;
+}
+.add-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(102,126,234,.7);
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     ヘッダー
+══════════════════════════════════════════ -->
+<div class="header">
+  <div class="header-nav">
+    <a class="nav-btn"
+       href="{{ url_for('index', year=prev_year, month=prev_month, member=member_filter) }}">&#8249;</a>
+    <span class="nav-title">{{ year }}年 {{ month }}月</span>
+    <a class="nav-btn"
+       href="{{ url_for('index', year=next_year, month=next_month, member=member_filter) }}">&#8250;</a>
+  </div>
+
+  <h1>📅 家族スケジュール</h1>
+
+  <div class="header-right">
+    <a class="import-btn" href="{{ url_for('import_image') }}">📷 AI取込</a>
+    <a class="today-btn"
+       href="{{ url_for('index', year=today.year, month=today.month, member=member_filter) }}">今日</a>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     メンバーフィルター
+══════════════════════════════════════════ -->
+<div class="filter-bar">
+  <a class="filter-btn {{ 'active' if member_filter=='全員' }}"
+     style="background:{{ '#667eea' if member_filter=='全員' else '#aaa' }}"
+     href="{{ url_for('index', year=year, month=month, member='全員') }}">全員</a>
+  {% for m in members %}
+  <a class="filter-btn {{ 'active' if member_filter==m }}"
+     style="background:{{ member_colors[m] }}"
+     href="{{ url_for('index', year=year, month=month, member=m) }}">{{ m }}</a>
+  {% endfor %}
+</div>
+
+<!-- ══════════════════════════════════════════
+     カレンダー本体
+══════════════════════════════════════════ -->
+<div class="calendar-wrapper">
+<div class="calendar" id="calendar">
+
+  <!-- 曜日ヘッダー -->
+  {% for dow, cls in [('日','sun'),('月',''),('火',''),('水',''),('木',''),('金',''),('土','sat')] %}
+  <div class="dow-header {{ cls }}">{{ dow }}</div>
+  {% endfor %}
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       週ループ
+       namespace を使って week_index を内側に渡す
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  {% set ns = namespace(week_index=0) %}
+  {% for week in weeks %}
+    {% set ns.week_index = loop.index0 %}
+
+    <div class="week-row" data-week="{{ loop.index0 }}">
+
+      {% for cell in week %}
+      {% set dow_idx = loop.index0 %}{# 0=日, 6=土 #}
+
+      <div class="day-cell
+                  {{ 'other-month' if not cell.in_month }}
+                  {{ 'today'       if cell.is_today }}
+                  {{ 'is-sun'      if dow_idx == 0 }}
+                  {{ 'is-sat'      if dow_idx == 6 }}"
+           data-date="{{ cell.date.strftime('%Y-%m-%d') }}"
+           data-col="{{ dow_idx }}"
+           data-week="{{ ns.week_index }}"
+           data-date="{{ cell.date.strftime('%Y-%m-%d') if cell.date else '' }}"
+           ondragover="event.preventDefault(); this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="onCellDrop(event, this)">
+
+        <!-- 日付番号 -->
+        <span class="day-number">{{ cell.date.day }}</span>
+
+        <!-- ──────────────────────────────
+             リボンコンテナ
+        ────────────────────────────────── -->
+        <div class="bars-container"
+             data-col="{{ dow_idx }}"
+             data-week="{{ ns.week_index }}"
+           data-date="{{ cell.date.strftime('%Y-%m-%d') if cell.date else '' }}"
+           ondragover="event.preventDefault(); this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="onCellDrop(event, this)">
+
+          {% for sp in cell.bars %}
+          {% set ev    = sp.event %}
+          {% set color = member_colors.get(ev.family_member, '#7f8c8d') %}
+
+          {# ── 角丸クラス決定 ── #}
+          {% if   sp.is_start and sp.is_end %}
+            {% set bar_cls = 'bar-both' %}
+          {% elif sp.is_start and not sp.is_end %}
+            {% set bar_cls = 'bar-start' %}
+          {% elif sp.is_end and not sp.is_start %}
+            {% set bar_cls = 'bar-end' %}
+          {% else %}
+            {% set bar_cls = 'bar-mid' %}
+          {% endif %}
+
+          <div class="bar {{ bar_cls }}"
+               data-event-id="{{ ev.id }}"
+               data-date="{{ sp.date }}"
+               data-row="{{ sp.row }}"
+               data-col-start="{{ sp.col_start }}"
+               data-col-end="{{ sp.col_end }}"
+               style="top:{{ sp.row * 20 }}px;
+                      background-color:{{ color }};
+                      left:0px; width:60px;"
+               draggable="true"
+               ondragstart="onBarDragStart(event, {{ ev.id }})"
+               ondragend="onBarDragEnd(event)"
+               onclick="openModal({{ ev.id }})">
+            {%- if sp.is_start -%}
+              {{ ev.title }}
+            {%- else -%}
+              &nbsp;
+            {%- endif -%}
+          </div>
+
+          {% endfor %}{# sp #}
+
+        </div><!-- /.bars-container -->
+
+        <!-- オーバーフローバッジ -->
+        {% if cell.overflow > 0 %}
+        <div class="overflow-badge"
+             onclick="alert('他 {{ cell.overflow }} 件あります')">
+          +{{ cell.overflow }}件
+        </div>
+        {% endif %}
+
+      </div><!-- /.day-cell -->
+      {% endfor %}{# cell #}
+
+    </div><!-- /.week-row -->
+  {% endfor %}{# week #}
+
+</div><!-- /#calendar -->
+</div><!-- /.calendar-wrapper -->
+
+<!-- ══════════════════════════════════════════
+     フローティング追加ボタン
+══════════════════════════════════════════ -->
+<a class="add-btn"
+   href="{{ url_for('new_event') }}"
+   title="イベントを追加">＋</a>
+
+<!-- ══════════════════════════════════════════
+     イベント詳細モーダル
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBox">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+
+    <div class="modal-title-bar">
+      <div class="modal-member-dot" id="modalDot"></div>
+      <h2 id="modalTitle">イベント詳細</h2>
+    </div>
+
+    <div class="modal-body">
+      <div class="modal-row">
+        <span class="modal-label">📅 日付</span>
+        <span class="modal-value" id="modalDate"></span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">🕐 時刻</span>
+        <span class="modal-value" id="modalTime"></span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">👤 担当</span>
+        <span class="modal-value" id="modalMember"></span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">📍 場所</span>
+        <span class="modal-value" id="modalLocation"></span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-label">📝 メモ</span>
+        <span class="modal-value" id="modalMemo"></span>
+      </div>
+    </div>
+
+    <hr class="modal-divider">
+
+    <div class="modal-actions">
+      <button class="btn btn-primary"   onclick="editEvent()">✏️ 編集</button>
+      <button class="btn btn-danger"    onclick="deleteEvent()">🗑️ 削除</button>
+      <button class="btn btn-secondary" onclick="copyEvent()">📋 コピー</button>
+      <button class="btn btn-secondary" onclick="closeModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     JavaScript
+══════════════════════════════════════════ -->
+<script>
+/* ─────────────────────────────────────────────
+   定数
+───────────────────────────────────────────── */
+const MAX_BAR_ROWS = {{ MAX_BAR_ROWS }};
+
+const MEMBER_COLORS = {
+  {% for m, c in member_colors.items() %}"{{ m }}": "{{ c }}",
+  {% endfor %}
+};
+
+/* ─────────────────────────────────────────────
+   リボン幅・位置の計算
+   col_start セルを基準に col_end セルの右端まで伸ばす
+───────────────────────────────────────────── */
+function calcBarWidths() {
+  const calEl = document.getElementById('calendar');
+  if (!calEl) return;
+
+  document.querySelectorAll('.week-row').forEach(weekRow => {
+    const cells = Array.from(weekRow.querySelectorAll('.day-cell'));
+    if (!cells.length) return;
+
+    // 各セルの BoundingClientRect をキャッシュ
+    const rects = cells.map(c => c.getBoundingClientRect());
+
+    weekRow.querySelectorAll('.bars-container').forEach(container => {
+      const colStart = parseInt(container.dataset.col);
+      const contRect = container.getBoundingClientRect();
+
+      container.querySelectorAll('.bar').forEach(bar => {
+        const bColStart = parseInt(bar.dataset.colStart);
+        const bColEnd   = parseInt(bar.dataset.colEnd);
+        const row       = parseInt(bar.dataset.row);
+
+        const rectS = rects[bColStart];
+        const rectE = rects[bColEnd];
+        if (!rectS || !rectE) return;
+
+        // コンテナ左端からの相対 left
+        const relLeft = rectS.left - contRect.left;
+        // 全幅（col_end 右端 - col_start 左端 - 右余白 2px）
+        const width   = (rectE.left + rectE.width) - rectS.left - 2;
+
+        bar.style.left  = relLeft + 'px';
+        bar.style.width = Math.max(width, 0) + 'px';
+        bar.style.top   = (row * 20) + 'px';
+      });
+    });
+  });
+}
+
+window.addEventListener('load', calcBarWidths);
+window.addEventListener('resize', () => {
+  clearTimeout(window._rzTimer);
+  window._rzTimer = setTimeout(calcBarWidths, 80);
+});
+
+/* ─────────────────────────────────────────────
+   モーダル
+───────────────────────────────────────────── */
+let currentEventId = null;
+
+function openModal(eventId) {
+  currentEventId = eventId;
+
+  fetch(`/event/${eventId}/json`)
+    .then(r => r.json())
+    .then(ev => {
+      const color = MEMBER_COLORS[ev.family_member] || '#7f8c8d';
+      document.getElementById('modalDot').style.background = color;
+      document.getElementById('modalTitle').textContent    = ev.title        || '(無題)';
+      document.getElementById('modalDate').textContent     = ev.display_date || ev.date || '―';
+      document.getElementById('modalTime').textContent     = ev.display_time || '―';
+      document.getElementById('modalMember').textContent   = ev.family_member|| '―';
+      document.getElementById('modalLocation').textContent = ev.location     || '―';
+      document.getElementById('modalMemo').textContent     = ev.memo         || '―';
+      document.getElementById('modalOverlay').classList.add('show');
+    })
+    .catch(err => console.error('モーダル取得エラー:', err));
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+  currentEventId = null;
+}
+
+// オーバーレイクリックで閉じる
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ESC で閉じる
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+function editEvent() {
+  if (currentEventId) location.href = `/event/${currentEventId}/edit`;
+}
+
+function deleteEvent() {
+  if (!currentEventId) return;
+  if (!confirm('このイベントを削除しますか？')) return;
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `/event/${currentEventId}/delete`;
+  document.body.appendChild(form);
+  form.submit();
+}
+
+/* ─────────────────────────────────────────────
+   ドラッグ＆ドロップ でイベントを移動
+───────────────────────────────────────────── */
+let _dragEventId   = null;   // ドラッグ中のイベントID
+let _dragEventDate = null;   // ドラッグ元の日付 (YYYY-MM-DD)
+let _dragCopy      = false;  // Ctrl+ドラッグでコピーモード
+let _ctrlHeld      = false;  // Ctrlキー押下状態を常時監視
+
+// keydown/keyupでCtrl状態を常時監視（最も確実な方法）
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Control') _ctrlHeld = true;
+});
+document.addEventListener('keyup', function(e) {
+  if (e.key === 'Control') _ctrlHeld = false;
+});
+// ウィンドウフォーカス喪失時もリセット
+window.addEventListener('blur', function() {
+  _ctrlHeld = false;
+});
+
+function onBarDragStart(e, eventId) {
+  _dragEventId   = eventId;
+  _dragEventDate = e.currentTarget.dataset.date || '';
+  e.dataTransfer.setData('text/plain', String(eventId));
+  // keydown/keyupで管理した_ctrlHeldを使用
+  const isCopy = _ctrlHeld || e.ctrlKey;
+  _dragCopy = isCopy;
+  e.dataTransfer.effectAllowed = isCopy ? 'copyMove' : 'move';
+  console.log('dragstart ctrlKey=', e.ctrlKey, '_ctrlHeld=', _ctrlHeld, 'isCopy=', isCopy, 'date=', _dragEventDate);
+}
+
+function onBarDragEnd(e) {
+  // ドラッグ終了時に状態リセット
+  _dragEventId = null;
+  _dragCopy    = false;
+  // _ctrlHeldはkeyupで管理するためここではリセットしない
+}
+
+function onCellDrop(e, cellEl) {
+  e.preventDefault();
+  cellEl.classList.remove('drag-over');
+
+  const eventId = _dragEventId || parseInt(e.dataTransfer.getData('text/plain'));
+  const newDate = cellEl.dataset.date;
+
+  if (!eventId || !newDate) return;
+
+  if (!_dragCopy && newDate === _dragEventDate) {
+    _dragEventId = null;
+    _dragCopy = false;
+    return;
+  }
+
+  const action = _dragCopy ? 'copy' : 'move';
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `/event/${eventId}/${action}`;
+
+  const inp = document.createElement('input');
+  inp.type  = 'hidden';
+  inp.name  = 'new_date';
+  inp.value = newDate;
+  form.appendChild(inp);
+
+  document.body.appendChild(form);
+  form.submit();
+
+  _dragEventId = null;
+  _dragCopy = false;
+}
+
+function copyEvent() {
+  if (!currentEventId) return;
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `/event/${currentEventId}/copy`;
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
+</body>
+</html>

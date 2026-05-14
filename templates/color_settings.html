@@ -1,0 +1,83 @@
+﻿{% extends "base.html" %}
+{% block title %}色設定{% endblock %}
+
+{% block extra_styles %}
+<style>
+.color-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  border: 2px solid #eee;
+  background: white;
+}
+.color-preview {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  flex-shrink: 0;
+}
+.color-name { font-weight: 700; font-size: 1rem; flex: 1; }
+.color-inputs { display: flex; gap: 8px; flex-direction: column; }
+.color-input-row { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #888; }
+.color-input-row input[type="color"] {
+  width: 36px; height: 28px;
+  border: none; padding: 0;
+  border-radius: 4px; cursor: pointer;
+}
+.current-code { font-family: monospace; font-size: 0.8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="card">
+    <h2 style="margin-bottom:8px;">🎨 色設定</h2>
+    <p style="color:#888;font-size:0.9rem;margin-bottom:20px;">
+      各メンバーのカレンダー表示色を確認できます。<br>
+      色を変更するには app.py の FAMILY_MEMBERS を編集してください。
+    </p>
+
+    {% for name, info in family_members.items() %}
+    <div class="color-card" style="border-color:{{ info.color }};">
+      <div class="color-preview" style="background:{{ info.color }};"></div>
+      <div class="color-name">{{ name }}</div>
+      <div class="color-inputs">
+        <div class="color-input-row">
+          <span>文字色：</span>
+          <input type="color" value="{{ info.color }}" disabled>
+          <span class="current-code">{{ info.color }}</span>
+        </div>
+        <div class="color-input-row">
+          <span>背景色：</span>
+          <input type="color" value="{{ info.bg }}" disabled>
+          <span class="current-code">{{ info.bg }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div style="margin-top:20px;padding:16px;background:#f8f9fa;border-radius:10px;">
+      <h3 style="margin-bottom:8px;font-size:0.95rem;">📝 色の変更方法</h3>
+      <pre style="font-size:0.8rem;color:#555;overflow-x:auto;white-space:pre-wrap;">
+FAMILY_MEMBERS = {
+    'りゅうや': {'color': '#FF6B6B', 'bg': '#FFE5E5'},
+    'りょうや': {'color': '#4ECDC4', 'bg': '#E5F9F7'},
+    ...
+}
+      </pre>
+      <p style="font-size:0.8rem;color:#888;margin-top:8px;">
+        color = 文字色・アクセント色<br>
+        bg = イベントの背景色
+      </p>
+    </div>
+
+    <a href="{{ url_for('index') }}" class="btn btn-primary" style="display:block;margin-top:16px;text-align:center;">
+      ◀ カレンダーに戻る
+    </a>
+  </div>
+</div>
+{% endblock %}

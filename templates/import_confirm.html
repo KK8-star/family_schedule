@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}取込内容の確認{% endblock %}
+
+{% block extra_styles %}
+<style>
+/* ── レイアウト ── */
+.confirm-wrap   { max-width: 900px; margin: 0 auto; padding: 16px; }
+.toolbar        { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.count-badge    { background:var(--primary,#4A90E2); color:#fff;
+                  padding:4px 14px; border-radius:20px; font-size:.9rem; }
+
+/* ── テーブル ── */
+.ev-table       { width:100%; border-collapse:collapse; font-size:.88rem; }
+.ev-table th    { background:var(--primary,#4A90E2); color:#fff;
+                  padding:10px 8px; text-align:left; white-space:nowrap; }
+.ev-table td    { padding:7px 8px; border-bottom:1px solid #eee;
+                  vertical-align:middle; }
+.ev-table tr:hover td { background:#f5f8ff; }
+.ev-table tr.row-low td { background:#fff8e1; }
+
+.ev-table input[type="text"],
+.ev-table input[type="date"],
+.ev-table input[type="time"],
+.ev-table select {
+  width:100%; padding:4px 6px;
+  border:1px solid #ccc; border-radius:6px;
+  font-size:.85rem; box-sizing:border-box;
+}
+
+/* ── 確信度バッジ ── */
+.badge          { display:inline-block; padding:2px 8px;
+                  border-radius:12px; font-size:.75rem; font-weight:700; }
+.badge-high     { background:#d4edda; color:#155724; }
+.badge-med      { background:#fff3cd; color:#856404; }
+.badge-low      { background:#f8d7da; color:#721c24; }
+
+/* ── 固定フッター ── */
+.action-bar     { position:sticky; bottom:0; background:#fff;
+                  border-top:1px solid #ddd; padding:12px 16px;
+                  display:flex; gap:12px; justify-content:flex-end;
+                  box-shadow:0 -4px 12px rgba(0,0,0,.1); }
+
+/* ── レスポンシブ ── */
+@media(max-width:640px) {
+  .hide-sp { display:none; }
+  .ev-table { font-size:.78rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="confirm-wrap">
+  <div class="card">
+    <h2>✅ 取込内容の確認・編集</h2>
+    <p style="color:#666; margin-bottom:16px;">
+      読み取った予定を確認・修正してから保存してください。<br>
+      <span style="color:#856404; font-size:.9rem;">
+        ⚠ 黄色の行は読み取り確信度が低い予定です。必ず内容をご確認ください。
+      </span>
+    </p>
+
+    <!-- ツールバー -->
+    <div class="toolbar">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="chkAll" checked>
+        <strong>すべて選択</strong>
+      </label>
+      <span class="count-badge" id="cntBadge">0件選択中</span>
+      <button type="button" class="btn btn-gray" style="margin-left:auto;"
+              onclick="selectByConf('high','medium')">
+        確信度「高・中」のみ選択
+      </button>
+    </div>
+
+    <form method="POST" action="{{ url_for('import_save') }}">
+      <div style="overflow-x:auto;">
+        <table class="ev-table">
+          <thead>
+            <tr>
+              <th style="width:36px;">✓</th>
+              <th>タイトル</th>
+              <th style="width:120px;">日付</th>
+              <th class="hide-sp" style="width:80px;">開始</th>
+              <th class="hide-sp" style="width:80px;">終了</th>
+              <th style="width:100px;">担当者</th>
+              <th class="hide-sp">メモ</th>
+              <th style="width:52px;">確信度</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ev in events %}
+            {% set i = loop.index0 %}
+            <tr class="{{ 'row-low' if ev.confidence == 'low' else '' }}"
+                data-conf="{{ ev.confidence }}">
+
+              <!-- チェックボックス -->
+              <td>
+                <input type="checkbox"
+                       name="selected_events"
+                       value="{{ i }}"
+                       class="row-check"
+                       {{ 'checked' if ev.confidence != 'low' else '' }}>
+              </td>
+
+              <!-- タイトル -->
+              <td>
+                <input type="text"
+                       name="ev_{{ i }}_title"
+                       value="{{ ev.title | e }}"
+                       required>
+              </td>
+
+              <!-- 日付 -->
+              <td>
+                <input type="date"
+                       name="ev_{{ i }}_date"
+                       value="{{ ev.date }}"
+                       required>
+              </td>
+
+              <!-- 開始時間 -->
+              <td class="hide-sp">
+                <input type="time"
+                       name="ev_{{ i }}_start_time"
+                       value="{{ ev.start_time or '' }}">
+              </td>
+
+              <!-- 終了時間 -->
+              <td class="hide-sp">
+                <input type="time"
+                       name="ev_{{ i }}_end_time"
+                       value="{{ ev.end_time or '' }}">
+              </td>
+
+              <!-- 担当者 -->
+              <td>
+                <select name="ev_{{ i }}_family_member">
+                  {% for key in family_members %}
+                  <option value="{{ key }}"
+                    {{ 'selected' if ev.family_member == key }}>
+                    {{ key }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </td>
+
+              <!-- メモ -->
+              <td class="hide-sp">
+                <input type="text"
+                       name="ev_{{ i }}_memo"
+                       value="{{ ev.memo or '' }}"
+                       placeholder="（任意）">
+              </td>
+
+              <!-- 確信度バッジ -->
+              <td>
+                {% if ev.confidence == 'high' %}
+                  <span class="badge badge-high">高</span>
+                {% elif ev.confidence == 'medium' %}
+                  <span class="badge badge-med">中</span>
+                {% else %}
+                  <span class="badge badge-low">低</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 固定フッターボタン -->
+      <div class="action-bar">
+        <a href="{{ url_for('import_image') }}" class="btn btn-gray">
+          ← 画像を撮り直す
+        </a>
+        <button type="submit" class="btn btn-primary">
+          💾 選択した予定を保存
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const chkAll  = document.getElementById('chkAll');
+  const badge   = document.getElementById('cntBadge');
+  const checks  = () => document.querySelectorAll('.row-check');
+
+  /* カウント更新 */
+  function updateCount() {
+    const n = [...checks()].filter(c => c.checked).length;
+    badge.textContent = n + '件選択中';
+    chkAll.checked = n === checks().length;
+    chkAll.indeterminate = n > 0 && n < checks().length;
+  }
+
+  /* 全選択トグル */
+  chkAll.addEventListener('change', function () {
+    checks().forEach(c => c.checked = this.checked);
+    updateCount();
+  });
+
+  /* 個別チェック */
+  document.querySelectorAll('.row-check').forEach(c =>
+    c.addEventListener('change', updateCount)
+  );
+
+  /* 確信度フィルタ選択 */
+  window.selectByConf = function (...confs) {
+    checks().forEach(c => {
+      const conf = c.closest('tr').dataset.conf;
+      c.checked  = confs.includes(conf);
+    });
+    updateCount();
+  };
+
+  updateCount();   // 初期カウント
+})();
+</script>
+{% endblock %}

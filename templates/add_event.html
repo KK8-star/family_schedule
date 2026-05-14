@@ -1,0 +1,421 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>予定を追加 - 家族スケジュール</title>
+  <style>
+    /* ── リセット & ベース ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background: #f0f4f8;
+      color: #2d3748;
+      min-height: 100vh;
+    }
+
+    /* ── ヘッダー ──────────────────────────────────────────── */
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .header a {
+      color: white;
+      text-decoration: none;
+      font-size: 1.5rem;
+      line-height: 1;
+      transition: opacity .2s;
+    }
+    .header a:hover { opacity: .75; }
+    .header h1 { font-size: 1.2rem; font-weight: 700; }
+
+    /* ── メインコンテナ ────────────────────────────────────── */
+    .container {
+      max-width: 640px;
+      margin: 32px auto;
+      padding: 0 16px 40px;
+    }
+
+    /* ── カード ────────────────────────────────────────────── */
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #4a5568;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── フォームグループ ──────────────────────────────────── */
+    .form-group { margin-bottom: 22px; }
+    .form-group label {
+      display: block;
+      font-size: .85rem;
+      font-weight: 600;
+      color: #718096;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .form-group label .required { color: #e53e3e; margin-left: 2px; }
+    .form-group input[type="text"],
+    .form-group input[type="date"],
+    .form-group input[type="time"],
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 1rem;
+      color: #2d3748;
+      background: #f7fafc;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+      font-family: inherit;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102,126,234,.15);
+      background: white;
+    }
+    .form-group textarea { resize: vertical; min-height: 90px; }
+
+    /* ── 横並びグループ ────────────────────────────────────── */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+
+    /* ── 複数日トグル ──────────────────────────────────────── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+      padding: 12px 16px;
+      background: #f7fafc;
+      border-radius: 10px;
+      border: 2px solid #e2e8f0;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color .2s;
+    }
+    .toggle-row:hover { border-color: #667eea; }
+    .toggle-row input[type="checkbox"] { display: none; }
+    .toggle-switch {
+      width: 44px;
+      height: 24px;
+      background: #cbd5e0;
+      border-radius: 12px;
+      position: relative;
+      flex-shrink: 0;
+      transition: background .2s;
+    }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      background: white;
+      border-radius: 50%;
+      top: 3px; left: 3px;
+      transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    }
+    .toggle-row input:checked + .toggle-switch { background: #667eea; }
+    .toggle-row input:checked + .toggle-switch::after { transform: translateX(20px); }
+    .toggle-label {
+      font-size: .95rem;
+      font-weight: 600;
+      color: #4a5568;
+    }
+    .toggle-label span {
+      font-size: .8rem;
+      color: #a0aec0;
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* 終了日欄の表示/非表示 */
+    .end-date-group { display: none; margin-bottom: 22px; }
+    .end-date-group.visible { display: block; }
+
+    /* ── メンバーカラードット ──────────────────────────────── */
+    .member-select-wrapper { position: relative; }
+    .member-color-dot {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      pointer-events: none;
+      transition: background .2s;
+    }
+    .member-select-wrapper select { padding-left: 34px; }
+
+    /* ── ヒントテキスト ────────────────────────────────────── */
+    .hint { font-size: .78rem; color: #a0aec0; margin-top: 5px; }
+
+    /* ── セクション区切り ──────────────────────────────────── */
+    .section-divider { border: none; border-top: 1px dashed #e2e8f0; margin: 28px 0; }
+    .section-label {
+      font-size: .8rem;
+      font-weight: 700;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 16px;
+    }
+
+    /* ── ボタン ────────────────────────────────────────────── */
+    .btn-group { display: flex; gap: 12px; margin-top: 32px; }
+    .btn {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      text-decoration: none;
+      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102,126,234,.4);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 18px rgba(102,126,234,.5); }
+    .btn-secondary { background: #edf2f7; color: #4a5568; }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    /* ── フラッシュ ────────────────────────────────────────── */
+    .flash {
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: .9rem;
+      font-weight: 600;
+    }
+    .flash.error   { background:#fff5f5; border:1px solid #fc8181; color:#c53030; }
+    .flash.success { background:#f0fff4; border:1px solid #68d391; color:#276749; }
+    .flash.warning { background:#fffbeb; border:1px solid #f6e05e; color:#744210; }
+    .flash.info    { background:#ebf8ff; border:1px solid #63b3ed; color:#2c5282; }
+  </style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<header class="header">
+  <a href="{{ url_for('index') }}" title="カレンダーへ戻る">←</a>
+  <h1>📅 予定を追加</h1>
+</header>
+
+<div class="container">
+
+  <!-- フラッシュメッセージ -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card">
+    <div class="card-title">✏️ 新しい予定</div>
+
+    <!-- ✅ url_for('new_event') に修正 -->
+    <form method="POST" action="{{ url_for('new_event') }}" id="addForm">
+
+      <!-- タイトル -->
+      <div class="form-group">
+        <label>タイトル <span class="required">*</span></label>
+        <input type="text" name="title"
+               value="{{ form_data.title if form_data else '' }}"
+               placeholder="例）歯医者の予約" required maxlength="200"
+               autofocus>
+      </div>
+
+      <!-- ── 日程 ─────────────────────────────────────────── -->
+      <p class="section-label">📆 日程</p>
+
+      <!-- 開始日 -->
+      <div class="form-group">
+        <label>開始日 <span class="required">*</span></label>
+        <input type="date" name="date" id="startDate"
+               value="{{ form_data.date if form_data else default_date }}"
+               required>
+      </div>
+
+      <!-- 複数日トグル -->
+      <label class="toggle-row" for="multiDayToggle">
+        <input type="checkbox" id="multiDayToggle" name="multi_day"
+               {% if form_data and form_data.end_date %}checked{% endif %}
+               onchange="toggleEndDate(this)">
+        <span class="toggle-switch"></span>
+        <span class="toggle-label">
+          複数日の予定
+          <span>宿泊・旅行など複数日にまたがる場合</span>
+        </span>
+      </label>
+
+      <!-- 終了日 -->
+      <div class="end-date-group {% if form_data and form_data.end_date %}visible{% endif %}"
+           id="endDateGroup">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>終了日</label>
+          <input type="date" name="end_date" id="endDate"
+                 value="{{ form_data.end_date if form_data else '' }}">
+          <p class="hint">※ 開始日より後の日付を入力してください</p>
+        </div>
+      </div>
+
+      <hr class="section-divider">
+
+      <!-- ── 時刻 ─────────────────────────────────────────── -->
+      <p class="section-label">🕐 時刻（任意）</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>開始時刻</label>
+          <input type="time" name="start_time"
+                 value="{{ form_data.start_time if form_data else '' }}">
+        </div>
+        <div class="form-group">
+          <label>終了時刻</label>
+          <input type="time" name="end_time"
+                 value="{{ form_data.end_time if form_data else '' }}">
+        </div>
+      </div>
+
+      <hr class="section-divider">
+
+      <!-- ── 詳細 ─────────────────────────────────────────── -->
+      <p class="section-label">📋 詳細情報</p>
+
+      <!-- 担当メンバー -->
+      <div class="form-group">
+        <label>担当メンバー</label>
+        <div class="member-select-wrapper">
+          <span class="member-color-dot" id="memberDot"></span>
+          <select name="family_member" id="memberSelect" onchange="updateMemberDot()">
+            {% for member in members %}
+              <option value="{{ member }}"
+                {% if form_data and form_data.family_member == member %}selected
+                {% elif not form_data and loop.first %}selected
+                {% endif %}>
+                {{ member }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- 場所 -->
+      <div class="form-group">
+        <label>場所</label>
+        <input type="text" name="location"
+               value="{{ form_data.location if form_data else '' }}"
+               placeholder="例）東京駅、〇〇病院" maxlength="200">
+      </div>
+
+      <!-- メモ -->
+      <div class="form-group">
+        <label>メモ</label>
+        <textarea name="memo"
+                  placeholder="備考・持ち物など">{{ form_data.memo if form_data else '' }}</textarea>
+      </div>
+
+      <!-- ボタン -->
+      <div class="btn-group">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">← キャンセル</a>
+        <button type="submit" class="btn btn-primary">➕ 追加する</button>
+      </div>
+
+    </form>
+  </div><!-- /.card -->
+</div><!-- /.container -->
+
+<script>
+  /* ── メンバーカラー ─────────────────────────────────────── */
+  const MEMBER_COLORS = {
+    {% for member, color in member_colors.items() %}
+    "{{ member }}": "{{ color }}",
+    {% endfor %}
+  };
+
+  function updateMemberDot() {
+    const sel = document.getElementById('memberSelect');
+    const dot = document.getElementById('memberDot');
+    dot.style.background = MEMBER_COLORS[sel.value] || '#a0aec0';
+  }
+
+  /* ── 複数日トグル ───────────────────────────────────────── */
+  function toggleEndDate(cb) {
+    const group    = document.getElementById('endDateGroup');
+    const endInput = document.getElementById('endDate');
+    if (cb.checked) {
+      group.classList.add('visible');
+      const start = document.getElementById('startDate').value;
+      if (start && !endInput.value) {
+        const d = new Date(start + 'T00:00:00');
+        d.setDate(d.getDate() + 1);
+        endInput.value = d.toISOString().split('T')[0];
+      }
+      endInput.min = document.getElementById('startDate').value;
+    } else {
+      group.classList.remove('visible');
+      endInput.value = '';
+    }
+  }
+
+  /* 開始日変更 → 終了日の最小値を連動 */
+  document.getElementById('startDate').addEventListener('change', function () {
+    const endInput = document.getElementById('endDate');
+    endInput.min = this.value;
+    if (endInput.value && endInput.value <= this.value) {
+      const d = new Date(this.value + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      endInput.value = d.toISOString().split('T')[0];
+    }
+  });
+
+  /* ── フラッシュメッセージ 自動消去（5秒） ──────────────── */
+  document.querySelectorAll('.flash').forEach(el => {
+    setTimeout(() => {
+      el.style.transition = 'opacity .5s';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 500);
+    }, 5000);
+  });
+
+  /* ── 初期化 ─────────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded', updateMemberDot);
+</script>
+</body>
+</html>
